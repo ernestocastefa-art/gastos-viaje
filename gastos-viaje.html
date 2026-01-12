@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gastos de viaje · IA Coach</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2b2a6e">
+
+  <style>
+    :root{
+      --azul:#2b2a6e;
+      --dorado:#e6be55;
+      --gris:#666;
+      --blanco:#ffffff;
+    }
+
+    *{
+      box-sizing:border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body{
+      margin:0;
+      background:var(--azul);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      min-height:100vh;
+    }
+
+    /* CABECERA */
+    header.app-header{
+      width:100%;
+      display:flex;
+      justify-content:center;
+      padding:20px 0 10px;
+    }
+
+    header.app-header img{
+      max-width:260px;
+      height:auto;
+    }
+
+    /* CONTENEDOR */
+    .card{
+      background:var(--blanco);
+      width:100%;
+      max-width:420px;
+      border-radius:16px;
+      padding:20px;
+      margin-bottom:30px;
+    }
+
+    h1{
+      text-align:center;
+      color:var(--azul);
+      margin:0 0 16px;
+    }
+
+    input, select, button{
+      width:100%;
+      padding:10px 12px;
+      margin-bottom:10px;
+      border-radius:6px;
+      border:1px solid #ccc;
+      font-size:14px;
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    .btn-primary{
+      background:var(--dorado);
+      color:#000;
+    }
+
+    .btn-secondary{
+      background:var(--gris);
+      color:#fff;
+      margin-top:10px;
+    }
+
+    .total{
+      font-weight:700;
+      margin:10px 0;
+    }
+
+    .section-title{
+      font-weight:700;
+      margin-top:14px;
+    }
+
+    .history{
+      font-size:13px;
+      margin-top:10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- CABECERA -->
+  <header class="app-header">
+    <img src="IA_coach_blue_rectangulo.png" alt="IA Coach by Ernesto">
+  </header>
+
+  <!-- APP -->
+  <div class="card">
+
+    <h1>Gastos de viaje</h1>
+
+    <input id="persona" placeholder="Persona que paga">
+    <input id="pais" placeholder="País">
+    <input id="ciudad" placeholder="Ciudad">
+    <input id="fecha" type="date">
+    <input id="hora" type="time">
+
+    <select id="tipo">
+      <option>Comida</option>
+      <option>Transporte</option>
+      <option>Alojamiento</option>
+      <option>Entradas</option>
+      <option>Otros</option>
+    </select>
+
+    <input id="detalleTipo" placeholder="Especifica el tipo (si es OTROS)">
+    <input id="detalle" placeholder="Detalle del gasto">
+
+    <select id="moneda">
+      <option>EUR</option>
+      <option>USD</option>
+    </select>
+
+    <input id="importe" type="number" placeholder="Importe">
+
+    <button class="btn-primary" onclick="addGasto()">Añadir gasto</button>
+
+    <div class="total">Total: <span id="total">0.00</span> €</div>
+
+    <div class="section-title">Resumen por persona</div>
+    <div id="resumen"></div>
+
+    <div class="section-title">Balance</div>
+    <div id="balance"></div>
+
+    <button class="btn-secondary" onclick="exportCSV()">Exportar CSV</button>
+
+    <div class="section-title">Histórico</div>
+    <div id="historico" class="history"></div>
+
+  </div>
+
+  <script>
+    const gastos = [];
+
+    function addGasto(){
+      const persona = personaInput.value.trim();
+      const pais = paisInput.value.trim();
+      const ciudad = ciudadInput.value.trim();
+      const fecha = fechaInput.value;
+      const hora = horaInput.value;
+      const tipo = tipoSelect.value === "Otros" && detalleTipo.value
+        ? detalleTipo.value
+        : tipoSelect.value;
+      const detalle = detalleInput.value.trim();
+      const moneda = monedaSelect.value;
+      const importe = parseFloat(importeInput.value);
+
+      if(!persona || !importe) return;
+
+      gastos.push({persona,pais,ciudad,fecha,hora,tipo,detalle,moneda,importe});
+      limpiar();
+      render();
+    }
+
+    function limpiar(){
+      importeInput.value="";
+      detalleInput.value="";
+      detalleTipo.value="";
+    }
+
+    function render(){
+      let total = 0;
+      const porPersona = {};
+      historico.innerHTML="";
+
+      gastos.forEach(g=>{
+        total+=g.importe;
+        porPersona[g.persona]=(porPersona[g.persona]||0)+g.importe;
+
+        historico.innerHTML += `
+          ${g.fecha} ${g.hora} – ${g.persona} – ${g.tipo} – ${g.detalle} – ${g.ciudad} (${g.pais}) – ${g.importe.toFixed(2)} ${g.moneda}<br>
+        `;
+      });
+
+      totalSpan.textContent = total.toFixed(2);
+
+      resumen.innerHTML="";
+      Object.entries(porPersona).forEach(([p,v])=>{
+        resumen.innerHTML += `${p}: ${v.toFixed(2)} €<br>`;
+      });
+
+      balance.innerHTML="";
+      const personas = Object.keys(porPersona);
+      if(personas.length===2){
+        const media = total/2;
+        personas.forEach(p=>{
+          const diff = porPersona[p]-media;
+          balance.innerHTML += diff>0
+            ? `${p} debe recibir ${diff.toFixed(2)} €<br>`
+            : `${p} debe pagar ${Math.abs(diff).toFixed(2)} €<br>`;
+        });
+      }
+    }
+
+    function exportCSV(){
+      let csv="Persona,País,Ciudad,Fecha,Hora,Tipo,Detalle,Moneda,Importe\n";
+      gastos.forEach(g=>{
+        csv+=`${g.persona},${g.pais},${g.ciudad},${g.fecha},${g.hora},${g.tipo},${g.detalle},${g.moneda},${g.importe}\n`;
+      });
+      const blob=new Blob([csv],{type:"text/csv"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download="gastos.csv";
+      a.click();
+    }
+
+    const personaInput = document.getElementById("persona");
+    const paisInput = document.getElementById("pais");
+    const ciudadInput = document.getElementById("ciudad");
+    const fechaInput = document.getElementById("fecha");
+    const horaInput = document.getElementById("hora");
+    const tipoSelect = document.getElementById("tipo");
+    const detalleTipo = document.getElementById("detalleTipo");
+    const detalleInput = document.getElementById("detalle");
+    const monedaSelect = document.getElementById("moneda");
+    const importeInput = document.getElementById("importe");
+
+    const totalSpan = document.getElementById("total");
+    const resumen = document.getElementById("resumen");
+    const balance = document.getElementById("balance");
+    const historico = document.getElementById("historico");
+
+    if("serviceWorker" in navigator){
+      navigator.serviceWorker.register("sw.js");
+    }
+  </script>
+
+</body>
+</html>
